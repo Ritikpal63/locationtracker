@@ -1,6 +1,5 @@
 const mysql = require('mysql2');
 
-// Create connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
@@ -9,20 +8,28 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  multipleStatements: true // Required for creating tables
+  multipleStatements: true
 });
 
-// Promisify for async/await
 const promisePool = pool.promise();
 
 // Database initialization function
 const initializeDatabase = async () => {
   try {
+    // Try to connect without database first to create it
+    const tempPool = mysql.createPool({
+      host: process.env.DB_HOST || 'localhost',
+      user: process.env.DB_USER || 'root',
+      password: process.env.DB_PASSWORD || '',
+      waitForConnections: true,
+      connectionLimit: 1,
+    }).promise();
+
     // Create database if not exists
-    await promisePool.query(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME || 'location_camera_db'}`);
-    await promisePool.query(`USE ${process.env.DB_NAME || 'location_camera_db'}`);
+    await tempPool.query(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME || 'location_camera_db'}`);
+    await tempPool.query(`USE ${process.env.DB_NAME || 'location_camera_db'}`);
     
-    // Create users table
+    // Create tables
     await promisePool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -35,7 +42,6 @@ const initializeDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    // Create locations table
     await promisePool.query(`
       CREATE TABLE IF NOT EXISTS locations (
         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -50,7 +56,6 @@ const initializeDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    // Create photos table
     await promisePool.query(`
       CREATE TABLE IF NOT EXISTS photos (
         id INT AUTO_INCREMENT PRIMARY KEY,
